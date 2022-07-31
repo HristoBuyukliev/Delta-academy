@@ -1,0 +1,7 @@
+numpy
+pygame
+pytest
+tqdm
+torch
+pre-commit
+pygame
