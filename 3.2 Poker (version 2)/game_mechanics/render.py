@@ -163,12 +163,11 @@ def draw_player_cards(
 def render(
     screen: pygame.Surface,
     player_states: Dict[str, State],
-    most_recent_move: Dict,
+    most_recent_move: Dict[int, str],
     render_opponent_cards: bool = True,
     continue_hands: bool = True,
     win_message: Optional[str] = None,
     turn: Optional[int] = None,
-    full_raise_size: Optional[int] = None,
 ) -> None:
     """player_states is a dict of player_id: player_state."""
 
@@ -197,14 +196,7 @@ def render(
         # Load and blit text for player name
 
         # Only render the most recent move when you are not about to make a new move (or if you've just folded)
-        move = (
-            move_to_str[most_recent_move[idx]] if turn != idx or most_recent_move[idx] == 0 else ""
-        )
-
-        if move == "raise half" and full_raise_size is not None:
-            move = f"raise {full_raise_size // 2}"
-        elif move == "raise full" and full_raise_size is not None:
-            move = f"raise {full_raise_size}"
+        move = most_recent_move[idx] if turn != idx or most_recent_move[idx] == "fold" else ""
 
         text = font.render(move, True, WHITE)
         textRect = text.get_rect()

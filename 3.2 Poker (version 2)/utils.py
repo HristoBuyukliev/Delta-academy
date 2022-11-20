@@ -4,37 +4,33 @@ import numpy as np
 from uuid import uuid4
 from einops import rearrange
 
+
 def discounted_value(rewards, gamma):
     discount_factors = np.array([gamma**i for i in range(len(rewards))])
     return (rewards*discount_factors).sum()
 
 
-class EpisodeReplayMemory:
+class ParallelEpisodeReplayMemory:
     def __init__(self, gamma, lamda):
         self.data = []
-        self.current_episode = []
+        self.current_episodes = {}
         self.gamma = gamma
         self.lamda = lamda
         
     def append(self, datapoint):
+        episode_id = datapoint['episode_id']
         new_row = pd.DataFrame.from_records(datapoint, index=[uuid4()])
-        if len(self.current_episode) == 0:
-            self.current_episode = pd.DataFrame(columns = datapoint.keys())
-        self.current_episode = pd.concat([self.current_episode, new_row])
+        if len(self.current_episodes.get(episode_id, [])) == 0:
+            self.current_episodes[episode_id] = pd.DataFrame(columns = datapoint.keys())
+        self.current_episodes[episode_id] = pd.concat([self.current_episodes[episode_id], new_row])
         if datapoint['done']:
-            discounted_rewards = np.array([discounted_value(self.current_episode.reward.values[i:], self.gamma) for i in range(len(self.current_episode))])
-#             gaes = gae(self.current_episode.reward,
-#                        self.current_episode.value.values,
-#                        np.append(self.current_episode.value.values[1:], 0),
-#                        self.gamma,
-#                        self.lamda)
-#             self.current_episode['gae'] = gaes
-            self.current_episode['discounted_rewards'] = discounted_rewards
+            episode = self.current_episodes[episode_id]
+            discounted_rewards = np.array([discounted_value(episode.reward.values[i:], self.gamma) for i in range(len(episode))])
+            episode['discounted_rewards'] = discounted_rewards
             if len(self.data) == 0:
-                self.data = pd.DataFrame(columns = self.current_episode.columns)
-            self.data  = pd.concat([self.data, self.current_episode])
-            self.current_episode = []
-            
+                self.data = pd.DataFrame(columns = episode.columns)
+            self.data  = pd.concat([self.data, episode])
+            self.current_episodes.pop(episode_id)            
     
     def sample(self, size):
         size = min([size, len(self.data)])
