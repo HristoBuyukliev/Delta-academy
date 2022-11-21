@@ -14,7 +14,7 @@ from game_mechanics import (
 )
 
 from einops.layers.torch import Rearrange
-from einops import rearrange
+from einops import rearrange, repeat
 from tqdm import tqdm
 import random
 
@@ -24,7 +24,6 @@ pyramid = torch.ones((2,2))
 pyramid = nn.functional.pad(pyramid, pad=(1,1,1,1),value=0)
 pyramid = nn.functional.pad(pyramid, pad=(1,1,1,1),value=-1).to(torch.float32)
 
-hidden = 10
 class OthelloNet(nn.Module):
     def __init__(self):
         super(OthelloNet, self).__init__()
@@ -37,6 +36,8 @@ class OthelloNet(nn.Module):
         # stride 2
         self.conv1_s2 = nn.Conv2d(4,hidden, kernel_size=3, padding=2,dilation=2)
         self.conv2_s2 = nn.Conv2d(hidden*2,hidden, kernel_size=3, padding=2,dilation=2)
+    
+#         self.linear = nn.Linear(hidden*2*6*6, hidden)
     
     def forward(self, x):
         x_1a = self.conv1(x)
@@ -51,6 +52,13 @@ class OthelloNet(nn.Module):
         x_2b = nn.functional.relu(x_2b)
 
         x = torch.concat([x_2a, x_2b],dim=1)
+        # add a FC layer
+#         x_fc = rearrange(x, 'b c w h -> b (c w h)')
+#         x_fc = self.linear(x_fc)
+#         x_fc = repeat(x_fc, 'b c -> b c w h', w=6,h=6)
+#         x = torch.concat([x, x_fc], dim=1)
+        
+        # final flatten
         x = self.conv3(x)
         x = nn.functional.tanh(x)
         x = rearrange(x, 'b 1 w h -> b w h')
@@ -64,7 +72,6 @@ def tensorify(np_state):
     state0 = (tensor_state == 0).to(torch.float32)
     state_1 = (tensor_state == -1).to(torch.float32)
     return torch.stack([state1,state0,state_1,pyramid])
-#     return torch.stack([tensor_state, pyramid])
     
 def greedy_move(net, state, possible_moves):
     if len(possible_moves) == 0: return None
@@ -75,14 +82,14 @@ def greedy_move(net, state, possible_moves):
 def train():
 
     
-    n_episodes = 100
-    gamma = 0.9
+    n_episodes = 1000
+    gamma = 1
     epsilon = 0.3
-    epsilon_decay = 0.99
+    epsilon_decay = 0.999
     env = OthelloEnv()
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = torch.nn.L1Loss()
 
-    optim = torch.optim.AdamW(network.parameters())
+    optim = torch.optim.AdamW(network.parameters(), lr=0.0001)
     memory = []
 
     N = 2000
@@ -91,7 +98,7 @@ def train():
     for episode in tqdm(range(n_episodes)):
         state, reward, done, info = env.reset()
         tensor_state = tensorify(state) #torch.as_tensor(state, dtype=torch.float32)
-
+        memory_episode = []
         while not done:
             prev_state = tensor_state
             possible_moves = get_legal_moves(state)
@@ -105,7 +112,7 @@ def train():
             state, reward, done, info = env.step(move)
             tensor_state = tensorify(state)
             if move is not None:
-                memory.append((prev_state, reward, move, tensor_state))
+                memory_episode.append((prev_state, reward, move, tensor_state))
 
             if len(memory) > N:
                 memory.pop(0)
@@ -115,9 +122,7 @@ def train():
                 random_choices = np.random.choice(range(len(memory)), size=M, replace=False)
 
                 old_states = torch.stack([memory[idx][0] for idx in random_choices])
-#                 old_states = rearrange(old_states, 'b w h -> b 1 w h')
                 states = torch.stack([memory[idx][3] for idx in random_choices])
-#                 states = rearrange(states, 'b w h -> b 1 w h')
                 rewards = torch.tensor(np.array([memory[idx][1] for idx in random_choices]),
                                         dtype=torch.float32)
                 moves = torch.as_tensor([memory[idx][2] for idx in random_choices], dtype=torch.long)
@@ -130,7 +135,13 @@ def train():
                 loss = loss_fn(old_value_moves, rewards + gamma * new_value_moves)
                 optim.zero_grad()
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(network.parameters(), 50.0)
                 optim.step()
+        num_steps = len(memory_episode)
+        for idx, step in enumerate(memory_episode):
+            discounted_reward = reward * gamma**(num_steps-idx)
+            memory_episode[idx] = (step[0], discounted_reward, step[2], step[3])
+        memory = memory + memory_episode
 
         epsilon *= epsilon_decay
     return network
@@ -170,7 +181,7 @@ if __name__ == "__main__":
         return choose_move(state, my_network)
 
     outcomes = {}
-    for _ in tqdm(range(100)):
+    for _ in tqdm(range(1000)):
         reward = play_othello_game(
             your_choose_move=choose_move_no_value_fn,
             opponent_choose_move=choose_move_randomly,

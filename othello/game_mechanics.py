@@ -63,7 +63,7 @@ def play_othello_game(
         action = your_choose_move(state)
         state, reward, done, info = game.step(action, verbose)
         total_return += reward
-        sleep(1 / game_speed_multiplier)
+#         sleep(1 / game_speed_multiplier)
 
     return total_return
 
