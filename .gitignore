@@ -1,6 +1,6 @@
 .ipynb_checkpoints/
 connect_four/
-delta-go/
+*.pth
 MCTS/
 othello/
 rlcard/

@@ -1,0 +1,4 @@
+,test_win_rate,test_score,test_ties,train_win_rate,train_score,train_ties,episode,total_score,total_played,train_loss_policy,train_loss_value
+0,0.2,-0.6,0.0,0.0,-0.01,0.0,0,-93.0,443,0.0,0.0
+1,0.32,-0.36,0.0,0.46,-0.08,0.0,100,-103.0,543,0.18034173548221588,0.0005463637644425035
+2,0.32,-0.36,0.0,0.42,-0.16,0.0,200,-119.0,643,0.15809468924999237,0.0032294089905917645
