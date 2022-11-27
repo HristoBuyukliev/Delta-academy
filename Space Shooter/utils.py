@@ -29,6 +29,8 @@ class EpisodeReplayMemory:
                        np.append(self.current_episode.value.values[1:], 0),
                        self.gamma,
                        self.lamda)
+            assert ~pd.isna(gaes).any(), 'no nans allowed'
+            print(gaes)
             self.current_episode['gae'] = gaes
             self.current_episode['discounted_rewards'] = discounted_rewards
             if len(self.data) == 0:
@@ -81,3 +83,45 @@ def gae(rewards, values, successor_values, gamma, lamda):
     # (by making the term for the last value be 1 - sum(all other terms))
     full_gamlam_matrix[:,-1] = 1 - full_gamlam_matrix[:,:-1].sum(axis=1)
     return full_gamlam_matrix @ deltas
+
+def angle(point1, point2):
+    distance = np.linalg.norm(point1 - point2)
+    sin = (point1[0] - point2[0]) / distance
+    cos = (point1[1] - point2[1]) / distance
+    return [sin.item(), cos.item()]
+    
+def distance(point1, point2):
+    return np.linalg.norm(point1 - point2)
+
+def add_features(state):
+    distance_ships = distance(state[:2], state[4:6])
+    distance_ships
+    angles_ships = angle(state[:2], state[4:6])
+    angles_ships
+
+    distance_bullets1_ship2 = [distance(state[4:6], state[8:10]), distance(state[4:6], state[12:14])]
+    if (state[8:10] == torch.as_tensor([-1, -1])).all().item():
+        distance_bullets1_ship2[0] = 10
+    if (state[12:14] == torch.as_tensor([-1, -1])).all().item():
+        distance_bullets1_ship2[1] = 10
+    distance_bullets1_ship2
+
+    distance_bullets2_ship1 = [distance(state[0:2], state[16:18]), distance(state[0:2], state[20:22])]
+    if (state[16:18] == torch.as_tensor([-1, -1])).all().item():
+        distance_bullets1_ship2[0] = 10
+    if (state[20:22] == torch.as_tensor([-1, -1])).all().item():
+        distance_bullets1_ship2[1] = 10
+
+    bullets_fired = [1,1,1,1]
+    if (state[8:10] == torch.as_tensor([-1, -1])).all().item():
+        bullets_fired[0] = 0
+    if (state[12:14] == torch.as_tensor([-1, -1])).all().item():
+        bullets_fired[1] = 0
+    if (state[16:18] == torch.as_tensor([-1, -1])).all().item():
+        bullets_fired[2] = 0
+    if (state[20:22] == torch.as_tensor([-1, -1])).all().item():
+        bullets_fired[3] = 0
+
+    features = [distance_ships] + angles_ships + distance_bullets1_ship2 + distance_bullets2_ship1 + bullets_fired
+    features = torch.as_tensor(features, dtype=torch.float32)
+    return torch.cat([state, features])
