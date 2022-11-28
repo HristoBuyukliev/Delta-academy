@@ -30,7 +30,6 @@ class EpisodeReplayMemory:
                        self.gamma,
                        self.lamda)
             assert ~pd.isna(gaes).any(), 'no nans allowed'
-            print(gaes)
             self.current_episode['gae'] = gaes
             self.current_episode['discounted_rewards'] = discounted_rewards
             if len(self.data) == 0:
@@ -86,8 +85,14 @@ def gae(rewards, values, successor_values, gamma, lamda):
 
 def angle(point1, point2):
     distance = np.linalg.norm(point1 - point2)
+    if distance <= 1e-5:
+        return [0, 0]
     sin = (point1[0] - point2[0]) / distance
     cos = (point1[1] - point2[1]) / distance
+    if pd.isna(sin.item()) or pd.isna(cos.item()):
+        print(point1, point2)
+        print('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+        raise ValueError
     return [sin.item(), cos.item()]
     
 def distance(point1, point2):
@@ -95,9 +100,7 @@ def distance(point1, point2):
 
 def add_features(state):
     distance_ships = distance(state[:2], state[4:6])
-    distance_ships
     angles_ships = angle(state[:2], state[4:6])
-    angles_ships
 
     distance_bullets1_ship2 = [distance(state[4:6], state[8:10]), distance(state[4:6], state[12:14])]
     if (state[8:10] == torch.as_tensor([-1, -1])).all().item():
