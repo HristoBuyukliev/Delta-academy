@@ -47,7 +47,7 @@ def gae(rewards, values, successor_values, dones, gamma, lamda):
     N = len(rewards)
     deltas = rewards + gamma * successor_values - values
     gamlam = gamma * lamda
-    gamlam_geo_series = torch.as_tensor([gamlam**i for i in range(N)])*(1-gamlam)
+    gamlam_geo_series = torch.as_tensor([gamlam**i for i in range(N)])#*(1-gamlam)
     full_gamlam_matrix = torch.stack([torch.roll(gamlam_geo_series, shifts=n) for n in range(N)])
     full_gamlam_matrix = torch.triu(full_gamlam_matrix)
 
@@ -55,12 +55,12 @@ def gae(rewards, values, successor_values, dones, gamma, lamda):
     for terminal_index in done_indexes:
         full_gamlam_matrix[: terminal_index + 1, terminal_index + 1:] = 0
 
-    end_index = torch.arange(N)
-    for start, end in zip([-1]+done_indexes[:-1], done_indexes):
-        end_index[start+1:end+1] = end
-    # make sure it sums to one:
-    # (by making the term for the last value be 1 - sum(all other terms))
-    full_gamlam_matrix[torch.arange(N), end_index] += 1 - full_gamlam_matrix.sum(axis=1)
+#     end_index = torch.arange(N)
+#     for start, end in zip([-1]+done_indexes[:-1], done_indexes):
+#         end_index[start+1:end+1] = end
+#     # make sure it sums to one:
+#     # (by making the term for the last value be 1 - sum(all other terms))
+#     full_gamlam_matrix[torch.arange(N), end_index] += 1 - full_gamlam_matrix.sum(axis=1)
     return full_gamlam_matrix @ deltas
 
 def angle(point1, point2):
