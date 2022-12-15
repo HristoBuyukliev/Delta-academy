@@ -19,7 +19,7 @@ def UCT_search(state, num_reads, network):
     for _ in range(num_reads):
         leaf = root.select_leaf()
         board = tensorize(leaf.state)
-        legal_moves = all_legal_moves(leaf.state.board, leaf.state.ko)
+        legal_moves = leaf.legal_moves #all_legal_moves(leaf.state.board, leaf.state.ko)
         with torch.no_grad():
             child_priors, value_estimate = network(rearrange(board, 'w h -> 1 w h'), [legal_moves])
             leaf.expand(child_priors.squeeze())
@@ -53,7 +53,10 @@ class UCTNode():
         self.parent = parent  # Optional[UCTNode]
         self.moves = [] # List[int]
         self.children = []  # List[UCTNode]
-        self.legal_moves = all_legal_moves(state.board, state.ko)
+        if state == None:
+            self.legal_moves = None
+        else:
+            self.legal_moves = all_legal_moves(state.board, state.ko)
         self.child_priors = np.zeros(
             82, dtype=np.float32)
         self.child_total_value = np.zeros(
@@ -83,10 +86,17 @@ class UCTNode():
     def terminal(self):
         return self.parent.child_terminals[self.move]
     
+    @terminal.setter
+    def terminal(self, value):
+        self.parent.child_terminals[self.move] = value
+    
     @property
     def reward(self):
         return self.parent.child_rewards[self.move]
         
+    @reward.setter
+    def reward(self, value):
+        self.parent.child_rewards[self.move] = value
 #     @property
 #     def legal_moves(self):
 #         return all_legal_moves(self.state.board, self.state.ko)
@@ -111,6 +121,7 @@ class UCTNode():
         current = self
         while current.is_expanded:
             current = current.best_child()
+        current.materialize()
         return current
     
     def expand(self, child_priors):
@@ -118,14 +129,20 @@ class UCTNode():
         self.child_priors = child_priors
         for move in range(82):
             self.add_child(move)
+            
+    def materialize(self):
+        # nodes are initialized with empty states; only when expanding, do we call the transition function
+        if not self.state:
+            self.state = transition_function(self.parent.state, self.move)
+            self.legal_moves = all_legal_moves(self.state.board, self.state.ko)
+            self.terminal = is_terminal(self.state)
+            self.reward = reward_function(self.state)
 
     def add_child(self, move):
         self.moves.append(move)
         if move in self.legal_moves:
             new_node = UCTNode(
-                transition_function(self.state, move), move, parent=self)
-            self.child_terminals[move] = is_terminal(new_node.state)
-            self.child_rewards[move] = reward_function(new_node.state)
+                None, move, parent=self)
             self.children.append(new_node)
         else:
             self.child_terminals[move] = True

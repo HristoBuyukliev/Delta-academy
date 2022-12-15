@@ -42,7 +42,7 @@ class EpisodeReplayMemory:
                 stacked_data[key] = values
             elif type(values[0]) in [torch.Tensor, torch.tensor]:
                 stacked_data[key] = torch.stack(tuple(values)).squeeze(dim=0)
-            elif type(values[0]) in [int, float, np.float64, bool, np.int32]:
+            elif type(values[0]) in [int, float, np.float64, bool, np.int32, np.int64]:
                 stacked_data[key] = torch.as_tensor(values, dtype=torch.float32)
             else:
                 print(type(values[0]), type(values), key)
