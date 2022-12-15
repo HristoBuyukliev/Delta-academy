@@ -14,17 +14,39 @@ import collections
 def tensorize(state):
     return torch.as_tensor(state.board, dtype=torch.float32)
 
-def UCT_search(state, num_reads, network):
+# def UCT_search(state, num_reads, network):
+#     root = UCTNode(state, move=0, parent=DummyNode())
+#     for _ in range(num_reads):
+#         leaf = root.select_leaf()
+#         board = tensorize(leaf.state)
+#         legal_moves = leaf.legal_moves #all_legal_moves(leaf.state.board, leaf.state.ko)
+#         with torch.no_grad():
+#             child_priors, value_estimate = network(rearrange(board, 'w h -> 1 w h'), [legal_moves])
+#             leaf.expand(child_priors.squeeze())
+#             leaf.backup(value_estimate.squeeze())
+#     return root
+
+def UCT_search(state, num_reads, batch_size, network):
     root = UCTNode(state, move=0, parent=DummyNode())
-    for _ in range(num_reads):
-        leaf = root.select_leaf()
-        board = tensorize(leaf.state)
-        legal_moves = leaf.legal_moves #all_legal_moves(leaf.state.board, leaf.state.ko)
+    while num_reads > 0:
+        leafs = []
+        boards = []
+        legal_moves_sets = []
+        for _ in range(min(batch_size, num_reads)):
+            leaf = root.select_leaf()
+            board = tensorize(leaf.state)
+            legal_moves = leaf.legal_moves
+            leafs.append(leaf)
+            boards.append(board)
+            legal_moves_sets.append(legal_moves)
         with torch.no_grad():
-            child_priors, value_estimate = network(rearrange(board, 'w h -> 1 w h'), [legal_moves])
-            leaf.expand(child_priors.squeeze())
-            leaf.backup(value_estimate.squeeze())
+            child_priors, value_estimate = network(torch.stack(boards), legal_moves_sets)
+        for leaf, child_prior, value_estimate in zip(leafs, child_priors, value_estimate):
+            leaf.backup(value_estimate)
+            leaf.expand(child_prior)
+        num_reads -= min(batch_size, num_reads)
     return root
+
 
 #     return max(root.children.items(),
 #        key=lambda item: item[1].number_visits)
@@ -120,6 +142,8 @@ class UCTNode():
     def select_leaf(self):
         current = self
         while current.is_expanded:
+            current.number_visits += 1
+            current.total_value += current.state.to_play
             current = current.best_child()
         current.materialize()
         return current
@@ -152,9 +176,9 @@ class UCTNode():
     def backup(self, value_estimate):
         current = self
         while current.parent is not None:
-            current.number_visits += 1
             if current.terminal:
-                current.total_value += self.reward
+                current.total_value += self.reward + self.state.to_play
+                value_estimate = self.reward
             else:
-                current.total_value += value_estimate
+                current.total_value += value_estimate + self.state.to_play
             current = current.parent
