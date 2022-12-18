@@ -52,6 +52,5 @@ class AlphaGoZeroBatch(nn.Module):
         x = rearrange(x, 'b block_width w h -> b (block_width w h)') 
         x1 = self.tower1(x)
         x1 = x1.masked_fill(mask, -torch.inf)
-        x1 = F.softmax(x1, dim=-1)
         x2 = self.tower2(x)
         return x1, x2
