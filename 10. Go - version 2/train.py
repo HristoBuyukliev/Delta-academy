@@ -93,16 +93,10 @@ for episode in tqdm(range(3000)):
         tensorboard.add_scalar("Policy loss", loss_policy.item(), episode)
         tensorboard.add_scalar("Value loss", loss_value.item(), episode)
         tensorboard.add_scalar("Winrate 100", winrate, episode)
-        
-    for key in erm.data[0].keys():
-        types = {type(datapoint[key]) for datapoint in erm.data}
-        print(key, types)
+
     if len(erm) > 100:
         print('pruning EpisodeReplayMemory...')
         erm.drop_oldest(len(erm) - episode * 40)
-        for key in erm.data[0].keys():
-            types = {type(datapoint[key]) for datapoint in erm.data}
-            print(key, types)
         
 
             
