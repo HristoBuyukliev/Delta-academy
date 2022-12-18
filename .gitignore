@@ -1,8 +1,9 @@
 .ipynb_checkpoints/
 connect_four/
-delta-go/
+*.pth
 MCTS/
 othello/
 rlcard/
 Heads-Up-No-Limit-Poker-delta-academy-IR3-1/
 poker/
+*.py[cod]
